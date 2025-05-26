@@ -1,3 +1,19 @@
+# Advanced SQL Assistant - Professional Git Ignore Configuration
+
+# =============================================================================
+# ENVIRONMENT AND SECRETS
+# =============================================================================
+.env
+.env.local
+.env.production
+.env.staging
+*.key
+*.pem
+secrets/
+
+# =============================================================================
+# PYTHON
+# =============================================================================
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -6,7 +22,6 @@ __pycache__/
 # C extensions
 *.so
 
-sqlllm_env/
 # Distribution / packaging
 .Python
 build/
@@ -128,7 +143,7 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Virtual environments (comprehensive list)
 .env
 .venv
 env/
@@ -136,6 +151,12 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+sqlllm_env/
+sql_env/
+streamlit_env/
+python_env/
+myenv/
+project_env/
 
 # Spyder project settings
 .spyderproject
@@ -173,3 +194,66 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# =============================================================================
+# STREAMLIT
+# =============================================================================
+.streamlit/
+
+# =============================================================================
+# DATABASE
+# =============================================================================
+*.db
+*.sqlite
+*.sqlite3
+database.sql
+backup.sql
+
+# =============================================================================
+# LOGS
+# =============================================================================
+logs/
+*.log
+log.txt
+
+# =============================================================================
+# TEMPORARY FILES
+# =============================================================================
+temp/
+tmp/
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# PROJECT SPECIFIC - ADVANCED SQL ASSISTANT
+# =============================================================================
+# Query history and user data
+query_history.json
+favorites.json
+user_sessions/
+
+# Exported files
+exports/
+downloads/
+*.csv
+*.xlsx
+*.json
+
+# Performance logs
+performance_logs/
+query_performance.log
+
+# Error logs
+error_logs/
+sql_errors.log
+
+# Test files
+test_*.py
+*_test.py
+test_results/
+
+# Cache directories
+.cache/
+*.cache
