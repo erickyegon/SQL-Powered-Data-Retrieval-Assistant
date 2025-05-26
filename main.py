@@ -7,15 +7,24 @@ from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
 
-from config import DEFAULT_DB_HOST, DEFAULT_DB_PORT, DEFAULT_DB_NAME, DEFAULT_DB_USER, DEFAULT_DB_PASSWORD
+from config import DEFAULT_DB_HOST, DEFAULT_DB_PORT, DEFAULT_DB_NAME, DEFAULT_DB_USER, DEFAULT_DB_PASSWORD, MODEL_NAME
 from utils import (
     get_db_schema, call_groq_llm, execute_sql, create_db_engine, test_db_connection,
     clean_sql_response, analyze_query_performance, get_optimization_suggestions,
     parse_sql_complexity, create_auto_visualization, create_dashboard_charts,
     generate_business_report, create_pdf_report, init_session_state,
     add_to_history, add_to_favorites, get_query_history, get_favorite_queries,
-    export_session_data
+    export_session_data, execute_sql_with_error_recovery, validate_sql_syntax,
+    fix_common_sql_errors
 )
+
+# Import new advanced modules
+from query_optimizer import QueryOptimizer, OptimizationLevel
+from dashboard_builder import DashboardBuilder
+from llm_guidance_system import (
+    LLMGuidanceSystem, QueryContext, BusinessDomain, QueryComplexity
+)
+from advanced_prompts import PromptTemplateManager
 
 # Built-in prompt templates
 PROMPT_TEMPLATES = {
@@ -80,7 +89,7 @@ Convert this business question into an optimal MySQL query: "{question}"
 ## DOMAIN EXPERTISE:
 - fiscal_year: Business periods ('FY2023', '2023', etc.)
 - product_code: Unique product identifiers
-- customer_code: Unique customer identifiers  
+- customer_code: Unique customer identifiers
 - market: Geographic/business segments
 - Percentages: Stored as decimals (0.15 = 15%)
 - Financial amounts: DECIMAL precision
@@ -95,7 +104,7 @@ Convert this business question into an optimal MySQL query: "{question}"
 "How many products?" → SELECT COUNT(DISTINCT product_code) FROM gross_price;
 "Average cost by year" → SELECT cost_year, AVG(manufacturing_cost) FROM manufacturing_cost GROUP BY cost_year ORDER BY cost_year;
 
-## CRITICAL: 
+## CRITICAL:
 Return ONLY the executable MySQL query - no explanations, no formatting, no comments.
 
 MySQL Query:"""
@@ -122,12 +131,14 @@ st.markdown(
     "*Enterprise-grade SQL generation, optimization, and business intelligence*")
 
 # Create main tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🔍 Query Builder",
-    "📊 Dashboard",
-    "⚡ Optimization",
+    "📊 Advanced Dashboard",
+    "⚡ Query Optimization",
+    "🧠 AI Guidance",
     "📋 Reports",
-    "📚 History"
+    "📚 History",
+    "⚙️ Settings"
 ])
 
 # Sidebar for database configuration
@@ -201,23 +212,23 @@ if connect_button:
                         with st.expander("🛠️ Download Troubleshooting", expanded=False):
                             st.markdown("""
                             **If downloads aren't working:**
-                            
+
                             ✅ **Check Browser Settings:**
                             - Ensure pop-ups are allowed for this site
                             - Check if downloads are blocked by browser
                             - Try right-clicking download button → "Save link as"
-                            
+
                             ✅ **Common Solutions:**
                             - Refresh the page and regenerate the report
                             - Try a different browser (Chrome, Firefox, Edge)
                             - Clear browser cache and cookies
                             - Disable browser extensions temporarily
-                            
+
                             ✅ **Alternative Methods:**
                             - Use the quick CSV button in query results
                             - Copy data directly from the table view
                             - Generate smaller reports (use LIMIT in queries)
-                            
+
                             ✅ **File Size Issues:**
                             - Large datasets may take time to prepare
                             - PDF generation requires more processing time
@@ -266,18 +277,18 @@ with tab1:
         2. **Choose Prompt Quality**: Select the AI prompt template that fits your needs
         3. **Connect**: Click the "Connect to Database" button
         4. **Ask Questions**: Once connected, ask questions about your data in natural language
-        
+
         ### Example Questions for Your Business Data:
         #### 📊 **Basic Analytics**
         - "How many products do we have?"
         - "Show me all markets"
         - "What are the available fiscal years?"
-        
-        #### 💰 **Financial Analysis** 
+
+        #### 💰 **Financial Analysis**
         - "What's the average gross price by fiscal year?"
         - "Show me products with highest manufacturing costs"
         - "Which customers have the highest pre-invoice discounts?"
-        
+
         #### 📈 **Business Intelligence**
         - "Calculate profit margins for each product"
         - "Show freight costs by market"
@@ -368,15 +379,15 @@ with tab1:
                                - Try rephrasing: "Generate only the SQL query for..."
                                - Use simpler language
                                - Be more specific about table names
-                            
+
                             2. **Complex query causing issues:**
                                - Break down into simpler parts
                                - Ask for basic query first, then refine
-                            
+
                             3. **Schema confusion:**
                                - Verify table and column names exist
                                - Check the schema in the sidebar
-                            
+
                             4. **Try different approaches:**
                                - "Show me data from [table_name]"
                                - "Count records in [table_name]"
@@ -405,22 +416,32 @@ with tab1:
                     st.session_state['last_sql_query'] = sql_query
                     st.session_state['last_nl_query'] = nl_query
 
-                    # Execute SQL and display results
+                    # Execute SQL and display results with error recovery
                     st.subheader("📊 Query Results")
                     try:
-                        with st.spinner("🔍 Executing query..."):
-                            results, columns = execute_sql(
-                                st.session_state.engine, sql_query)
+                        with st.spinner("🔍 Executing query with intelligent error recovery..."):
+                            # Use the enhanced error recovery function
+                            results, columns, final_query = execute_sql_with_error_recovery(
+                                st.session_state.engine, sql_query, st.session_state.schema)
                             execution_time = time.time() - start_time
+
+                            # Show if query was modified
+                            if final_query != sql_query:
+                                st.success("🔧 Query was automatically fixed and executed successfully!")
+                                with st.expander("📝 View Fixed Query"):
+                                    st.code(final_query, language="sql")
 
                         if results:
                             df = pd.DataFrame(results, columns=columns)
 
+                            # Store results for dashboard use
+                            st.session_state.query_results = df
+
                             # Display data
                             st.dataframe(df, use_container_width=True)
 
-                            # Add to history
-                            add_to_history(nl_query, sql_query,
+                            # Add to history (use final query that actually worked)
+                            add_to_history(nl_query, final_query,
                                            len(results), execution_time)
 
                             # Show result summary
@@ -453,106 +474,73 @@ with tab1:
                         else:
                             st.info(
                                 "✅ Query executed successfully, but no data was returned.")
-                            add_to_history(nl_query, sql_query,
+                            add_to_history(nl_query, final_query,
                                            0, execution_time)
 
                     except Exception as e:
                         st.error(f"❌ Error executing query: {str(e)}")
-                        st.info(
-                            "💡 Try rephrasing your question or check if the table/column names are correct.")
+
+                        # Provide helpful error analysis
+                        error_str = str(e)
+                        if "Unknown column" in error_str:
+                            st.warning("🔍 **Column Reference Error**: The query references a column that doesn't exist in the specified table.")
+                            st.info("💡 **Suggestions:**\n- Check column names in your database schema\n- Verify table aliases are correct\n- Try rephrasing your question")
+                        elif "Table" in error_str and "doesn't exist" in error_str:
+                            st.warning("🔍 **Table Reference Error**: The query references a table that doesn't exist.")
+                            st.info("💡 **Suggestions:**\n- Check table names in your database\n- Verify database connection\n- Try asking about available tables first")
+                        elif "syntax error" in error_str.lower():
+                            st.warning("🔍 **SQL Syntax Error**: The generated query has syntax issues.")
+                            st.info("💡 **Suggestions:**\n- Try rephrasing your question more clearly\n- Use simpler language\n- Break complex requests into smaller parts")
+                        else:
+                            st.info("💡 Try rephrasing your question or check if the table/column names are correct.")
 
                         with st.expander("🔧 Debug Information"):
                             st.text(f"Raw LLM response: {raw_sql_query}")
                             st.text(f"Cleaned SQL: {sql_query}")
+                            st.text(f"Error details: {error_str}")
+
+                            # Suggest a simple query to test connection
+                            st.subheader("🧪 Test Database Connection")
+                            if st.button("Test with Simple Query"):
+                                try:
+                                    test_results, test_columns = execute_sql(
+                                        st.session_state.engine,
+                                        "SELECT 1 as test_connection"
+                                    )
+                                    st.success("✅ Database connection is working!")
+                                except Exception as test_e:
+                                    st.error(f"❌ Database connection issue: {str(test_e)}")
             else:
                 st.error(
                     "❌ Failed to generate SQL query. Please check your Groq API key and try again.")
 
-# ============ TAB 2: DASHBOARD ============
+# ============ TAB 2: ADVANCED DASHBOARD ============
 with tab2:
-    st.header("📊 Interactive Dashboard")
+    st.header("📊 Advanced Dashboard Builder")
 
-    if not st.session_state.db_connected:
-        st.info("Connect to your database to access dashboard features.")
+    if st.session_state.db_connected:
+        # Initialize dashboard builder
+        if 'dashboard_builder' not in st.session_state:
+            st.session_state.dashboard_builder = DashboardBuilder()
+
+        # Create dashboard interface
+        st.session_state.dashboard_builder.create_dashboard_interface()
+
     else:
-        # Dashboard controls
-        col1, col2, col3 = st.columns(3)
+        st.info("Please connect to your database first to access advanced dashboard features")
 
-        with col1:
-            dashboard_query = st.selectbox(
-                "Quick Dashboard Queries",
-                [
-                    "SELECT * FROM information_schema.tables WHERE table_schema = DATABASE()",
-                    "SHOW TABLE STATUS",
-                    "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = DATABASE()",
-                    "Custom Query..."
-                ]
-            )
-
-        with col2:
-            chart_type = st.selectbox(
-                "Chart Type",
-                ["auto", "bar", "line", "pie", "scatter", "histogram"]
-            )
-
-        with col3:
-            refresh_dashboard = st.button("🔄 Refresh Dashboard")
-
-        if dashboard_query == "Custom Query...":
-            custom_query = st.text_area("Enter custom SQL query:", height=100)
-            if custom_query and st.button("Execute Dashboard Query"):
-                try:
-                    results, columns = execute_sql(
-                        st.session_state.engine, custom_query)
-                    if results:
-                        df = pd.DataFrame(results, columns=columns)
-
-                        # Create dashboard charts
-                        charts = create_dashboard_charts(df)
-
-                        # Display charts
-                        for chart_title, chart in charts:
-                            st.subheader(chart_title)
-                            if chart:
-                                st.plotly_chart(
-                                    chart, use_container_width=True)
-
-                        # Data table
-                        st.subheader("📋 Data Table")
-                        st.dataframe(df, use_container_width=True)
-
-                except Exception as e:
-                    st.error(f"Dashboard error: {str(e)}")
-
-        elif dashboard_query and dashboard_query != "Custom Query...":
-            try:
-                results, columns = execute_sql(
-                    st.session_state.engine, dashboard_query)
-                if results:
-                    df = pd.DataFrame(results, columns=columns)
-
-                    # Create visualization
-                    if chart_type == "auto":
-                        viz_chart = create_auto_visualization(df)
-                    else:
-                        viz_chart = create_auto_visualization(df, chart_type)
-
-                    if viz_chart:
-                        st.plotly_chart(viz_chart, use_container_width=True)
-
-                    st.dataframe(df, use_container_width=True)
-
-            except Exception as e:
-                st.error(f"Dashboard error: {str(e)}")
-
-# ============ TAB 3: OPTIMIZATION ============
+# ============ TAB 3: ADVANCED QUERY OPTIMIZATION ============
 with tab3:
-    st.header("⚡ Query Optimization Center")
+    st.header("⚡ Advanced Query Optimization Center")
 
     if not st.session_state.db_connected:
         st.info("Connect to your database to access optimization features.")
     else:
-        st.subheader("🔍 Analyze Query Performance")
+        # Initialize query optimizer
+        if 'query_optimizer' not in st.session_state:
+            st.session_state.query_optimizer = QueryOptimizer(st.session_state.engine)
+
+        st.subheader("🔍 Intelligent Query Analysis")
 
         # Query input for optimization
         optimize_query = st.text_area(
@@ -561,104 +549,413 @@ with tab3:
             placeholder="SELECT * FROM your_table WHERE conditions..."
         )
 
-        col1, col2 = st.columns(2)
+        # Optimization level selection
+        col1, col2, col3 = st.columns(3)
 
         with col1:
-            analyze_button = st.button("📊 Analyze Performance")
+            optimization_level = st.selectbox(
+                "Optimization Level",
+                options=[level.value for level in OptimizationLevel],
+                format_func=lambda x: x.replace('_', ' ').title()
+            )
 
         with col2:
-            suggest_button = st.button("💡 Get AI Suggestions")
+            analyze_button = st.button("📊 Comprehensive Analysis")
+
+        with col3:
+            optimize_button = st.button("🚀 Optimize Query")
 
         if optimize_query and analyze_button:
             try:
-                with st.spinner("Analyzing query performance..."):
-                    # Parse query complexity
-                    complexity = parse_sql_complexity(optimize_query)
-
-                    # Display complexity metrics
-                    st.subheader("📈 Query Complexity Analysis")
-
-                    if isinstance(complexity, dict) and "error" not in complexity:
-                        col1, col2, col3, col4, col5 = st.columns(5)
-
-                        with col1:
-                            st.metric("Tables", complexity.get("tables", 0))
-                        with col2:
-                            st.metric("Joins", complexity.get("joins", 0))
-                        with col3:
-                            st.metric("Subqueries", complexity.get(
-                                "subqueries", 0))
-                        with col4:
-                            st.metric("Aggregations", complexity.get(
-                                "aggregations", 0))
-                        with col5:
-                            st.metric("Conditions", complexity.get(
-                                "conditions", 0))
-
-                    # Get execution plan
-                    explain_result = analyze_query_performance(
-                        st.session_state.engine, optimize_query, db_type.lower()
+                with st.spinner("Performing comprehensive query analysis..."):
+                    # Use the advanced query optimizer
+                    optimization_result = st.session_state.query_optimizer.optimize_query(
+                        optimize_query,
+                        OptimizationLevel(optimization_level)
                     )
 
-                    if explain_result and not isinstance(explain_result, str):
-                        st.subheader("🔧 Execution Plan")
-                        st.json(explain_result)
-                    elif isinstance(explain_result, str):
-                        st.warning(f"Could not analyze: {explain_result}")
+                    # Display analysis results
+                    st.subheader("📈 Query Analysis Results")
+
+                    analysis = optimization_result['analysis']
+
+                    # Metrics display
+                    col1, col2, col3, col4, col5 = st.columns(5)
+
+                    with col1:
+                        st.metric("Query Type", analysis.get('query_type', 'Unknown'))
+                    with col2:
+                        st.metric("Complexity Score", f"{analysis.get('complexity_score', 0)}/10")
+                    with col3:
+                        st.metric("Tables", analysis.get('table_count', 0))
+                    with col4:
+                        st.metric("Joins", analysis.get('join_count', 0))
+                    with col5:
+                        st.metric("Subqueries", analysis.get('subquery_count', 0))
+
+                    # Function usage analysis
+                    if analysis.get('function_usage'):
+                        st.subheader("🔧 Function Usage Analysis")
+                        func_usage = analysis['function_usage']
+
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            if func_usage.get('aggregate'):
+                                st.write("**Aggregate Functions:**")
+                                for func in func_usage['aggregate']:
+                                    st.write(f"• {func}")
+
+                        with col2:
+                            if func_usage.get('date'):
+                                st.write("**Date Functions:**")
+                                for func in func_usage['date']:
+                                    st.write(f"• {func}")
+
+                        with col3:
+                            if func_usage.get('string'):
+                                st.write("**String Functions:**")
+                                for func in func_usage['string']:
+                                    st.write(f"• {func}")
+
+                    # Potential issues
+                    if analysis.get('potential_issues'):
+                        st.subheader("⚠️ Potential Performance Issues")
+                        for issue in analysis['potential_issues']:
+                            st.warning(f"• {issue}")
+
+                    # Optimization opportunities
+                    if analysis.get('optimization_opportunities'):
+                        st.subheader("💡 Optimization Opportunities")
+                        for opportunity in analysis['optimization_opportunities']:
+                            st.info(f"• {opportunity}")
 
             except Exception as e:
                 st.error(f"Analysis error: {str(e)}")
 
-        if optimize_query and suggest_button:
+        if optimize_query and optimize_button:
             try:
-                with st.spinner("Generating AI optimization suggestions..."):
-                    # Get optimization suggestions
-                    suggestions = get_optimization_suggestions(
+                with st.spinner("Generating optimization suggestions..."):
+                    # Get comprehensive optimization
+                    optimization_result = st.session_state.query_optimizer.optimize_query(
                         optimize_query,
-                        "Query analysis in progress...",
-                        st.session_state.schema
+                        OptimizationLevel(optimization_level)
                     )
 
+                    # Display optimization suggestions
+                    suggestions = optimization_result.get('suggestions', [])
+
                     if suggestions:
-                        st.subheader("💡 AI-Powered Optimization Suggestions")
-                        st.markdown(suggestions)
-                    else:
-                        st.warning(
-                            "Could not generate optimization suggestions.")
+                        st.subheader("🚀 Optimization Suggestions")
+
+                        for i, suggestion in enumerate(suggestions, 1):
+                            with st.expander(f"{suggestion.priority} Priority: {suggestion.description}"):
+                                st.write(f"**Type:** {suggestion.type}")
+                                st.write(f"**Expected Improvement:** {suggestion.expected_improvement}")
+                                st.write(f"**Implementation Effort:** {suggestion.implementation_effort}")
+
+                                if suggestion.sql_example:
+                                    st.code(suggestion.sql_example, language="sql")
+
+                    # Optimized query variants
+                    optimized_queries = optimization_result.get('optimized_queries', [])
+
+                    if optimized_queries:
+                        st.subheader("✨ Optimized Query Variants")
+
+                        for variant in optimized_queries:
+                            with st.expander(f"{variant['type']}: {variant['description']}"):
+                                st.code(variant['query'], language="sql")
+
+                                if st.button(f"Use This Query", key=f"use_{variant['type']}"):
+                                    st.session_state.optimized_query = variant['query']
+                                    st.success("Query copied! You can now use it in the Query Builder tab.")
 
             except Exception as e:
-                st.error(f"Suggestion error: {str(e)}")
+                st.error(f"Optimization error: {str(e)}")
 
         # Performance tips
-        st.subheader("🎯 General Performance Tips")
-        with st.expander("Click to view optimization best practices"):
+        st.subheader("🎯 Advanced Performance Tips")
+        with st.expander("Click to view comprehensive optimization guide"):
             st.markdown("""
-            ### Query Optimization Best Practices:
-            
-            **Indexing:**
-            - Add indexes on frequently queried columns
-            - Use composite indexes for multi-column WHERE clauses
-            - Avoid over-indexing (impacts INSERT/UPDATE performance)
-            
-            **Query Structure:**
-            - Use LIMIT for large result sets
-            - Prefer EXISTS over IN for subqueries
-            - Use appropriate JOIN types
-            - Avoid SELECT * when possible
-            
-            **WHERE Clauses:**
-            - Place most selective conditions first
-            - Use indexed columns in WHERE clauses
-            - Avoid functions in WHERE conditions
-            
-            **Performance Monitoring:**
-            - Use EXPLAIN to understand execution plans
-            - Monitor slow query logs
-            - Regular database maintenance (ANALYZE TABLE)
+            ### Advanced Query Optimization Strategies:
+
+            **🔍 Index Optimization:**
+            - Create covering indexes for frequently accessed columns
+            - Use partial indexes for filtered queries
+            - Monitor index usage with EXPLAIN plans
+            - Consider index-only scans for better performance
+
+            **⚡ Query Rewriting:**
+            - Replace correlated subqueries with JOINs
+            - Use window functions instead of self-joins
+            - Optimize UNION operations with UNION ALL when appropriate
+            - Leverage CTEs for complex logic
+
+            **📊 Data Access Patterns:**
+            - Partition large tables by date or key ranges
+            - Use materialized views for complex aggregations
+            - Implement query result caching
+            - Consider read replicas for reporting queries
+
+            **🎯 Advanced Techniques:**
+            - Use EXPLAIN ANALYZE for actual execution statistics
+            - Monitor query plans for plan stability
+            - Implement query hints for specific optimizations
+            - Regular statistics updates for optimal plans
             """)
 
-# ============ TAB 4: REPORTS ============
+# ============ TAB 4: AI GUIDANCE SYSTEM ============
 with tab4:
+    st.header("🧠 AI-Powered Query Guidance")
+
+    if not st.session_state.db_connected:
+        st.info("Connect to your database to access AI guidance features.")
+    else:
+        # Initialize LLM guidance system
+        if 'llm_guidance' not in st.session_state:
+            st.session_state.llm_guidance = LLMGuidanceSystem()
+
+        st.subheader("🎯 Intelligent Query Assistant")
+
+        # Context configuration
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            business_domain = st.selectbox(
+                "Business Domain",
+                options=[domain.value for domain in BusinessDomain],
+                format_func=lambda x: x.replace('_', ' ').title()
+            )
+
+        with col2:
+            query_complexity = st.selectbox(
+                "Expected Complexity",
+                options=[complexity.value for complexity in QueryComplexity],
+                format_func=lambda x: x.replace('_', ' ').title()
+            )
+
+        with col3:
+            user_expertise = st.selectbox(
+                "Your SQL Expertise",
+                options=["beginner", "intermediate", "advanced"]
+            )
+
+        # Performance requirements
+        performance_req = st.selectbox(
+            "Performance Requirements",
+            options=["fast", "balanced", "comprehensive"],
+            help="Fast: Quick results, Balanced: Good performance with completeness, Comprehensive: Complete analysis"
+        )
+
+        # Enhanced query input
+        st.subheader("💬 Ask Your Question")
+        user_question = st.text_area(
+            "Describe what you want to know about your data:",
+            height=100,
+            placeholder="e.g., 'Show me the top 10 customers by revenue in the last quarter, including their growth rate compared to the previous quarter'"
+        )
+
+        # Advanced options
+        with st.expander("🔧 Advanced Options"):
+            include_decomposition = st.checkbox("Show query decomposition", value=True)
+            include_context = st.checkbox("Show enhanced context", value=True)
+            include_validation = st.checkbox("Validate generated query", value=True)
+
+        if st.button("🚀 Generate Guided Query") and user_question:
+            try:
+                with st.spinner("Analyzing your question and generating intelligent query..."):
+                    # Create query context
+                    context = QueryContext(
+                        user_question=user_question,
+                        business_domain=BusinessDomain(business_domain),
+                        complexity_level=QueryComplexity(query_complexity),
+                        schema_info=st.session_state.schema,
+                        previous_queries=st.session_state.get('query_history', [])[-5:],  # Last 5 queries
+                        user_expertise=user_expertise,
+                        performance_requirements=performance_req
+                    )
+
+                    # Generate guided query
+                    guidance_result = st.session_state.llm_guidance.generate_guided_query(context)
+
+                    # Display results
+                    st.subheader("✨ Generated Query")
+
+                    sql_query = guidance_result.get('sql_query', '')
+                    if sql_query:
+                        st.code(sql_query, language="sql")
+
+                        # Query actions
+                        col1, col2, col3 = st.columns(3)
+
+                        with col1:
+                            if st.button("▶️ Execute Query"):
+                                # Execute the query with error recovery
+                                try:
+                                    with st.spinner("🔍 Executing query with error recovery..."):
+                                        results, columns, final_query = execute_sql_with_error_recovery(
+                                            st.session_state.engine, sql_query, st.session_state.schema)
+
+                                        # Show if query was modified
+                                        if final_query != sql_query:
+                                            st.success("🔧 Query was automatically fixed!")
+                                            with st.expander("📝 View Fixed Query"):
+                                                st.code(final_query, language="sql")
+
+                                    if results:
+                                        df = pd.DataFrame(results, columns=columns)
+                                        st.session_state.query_results = df
+                                        st.success(f"Query executed successfully! {len(df)} rows returned.")
+
+                                        # Show preview
+                                        st.subheader("📊 Results Preview")
+                                        st.dataframe(df.head(10), use_container_width=True)
+
+                                        # Auto visualization
+                                        if len(df) > 0:
+                                            viz_chart = create_auto_visualization(df)
+                                            if viz_chart:
+                                                st.plotly_chart(viz_chart, use_container_width=True)
+                                    else:
+                                        st.info("Query executed successfully but returned no data.")
+
+                                except Exception as e:
+                                    st.error(f"Error executing query: {str(e)}")
+                                    st.info("💡 The AI guidance system will learn from this error to improve future queries.")
+
+                        with col2:
+                            if st.button("📋 Copy to Query Builder"):
+                                st.session_state.guided_query = sql_query
+                                st.success("Query copied! Go to Query Builder tab to use it.")
+
+                        with col3:
+                            if st.button("⭐ Save as Favorite"):
+                                add_to_favorites(user_question, sql_query)
+                                st.success("Query saved to favorites!")
+
+                    # Show decomposition if requested
+                    if include_decomposition and guidance_result.get('decomposition'):
+                        st.subheader("🔍 Query Decomposition")
+                        decomp = guidance_result['decomposition']
+
+                        col1, col2 = st.columns(2)
+
+                        with col1:
+                            st.write("**Main Objective:**")
+                            st.write(decomp.main_objective)
+
+                            if decomp.sub_questions:
+                                st.write("**Sub-questions:**")
+                                for i, sub_q in enumerate(decomp.sub_questions, 1):
+                                    st.write(f"{i}. {sub_q}")
+
+                        with col2:
+                            st.write("**Required Components:**")
+                            if decomp.required_tables:
+                                st.write(f"• Tables: {', '.join(decomp.required_tables)}")
+                            if decomp.required_joins:
+                                st.write(f"• Joins: {len(decomp.required_joins)} needed")
+                            if decomp.filters_needed:
+                                st.write(f"• Filters: {len(decomp.filters_needed)} conditions")
+                            if decomp.aggregations_needed:
+                                st.write(f"• Aggregations: {', '.join(decomp.aggregations_needed)}")
+
+                            st.metric("Complexity Score", f"{decomp.complexity_score}/10")
+
+                    # Show enhanced context if requested
+                    if include_context and guidance_result.get('enhanced_prompt'):
+                        with st.expander("🧠 Enhanced AI Context"):
+                            st.text_area(
+                                "Enhanced prompt sent to AI:",
+                                value=guidance_result['enhanced_prompt'],
+                                height=200,
+                                disabled=True
+                            )
+
+                    # Show validation if requested
+                    if include_validation and guidance_result.get('validation'):
+                        validation = guidance_result['validation']
+
+                        if validation['is_valid']:
+                            st.success("✅ Query validation passed")
+                        else:
+                            st.error("❌ Query validation failed")
+                            for issue in validation.get('issues', []):
+                                st.error(f"• {issue}")
+
+                        if validation.get('warnings'):
+                            st.subheader("⚠️ Validation Warnings")
+                            for warning in validation['warnings']:
+                                st.warning(f"• {warning}")
+
+                    # Show suggestions
+                    if guidance_result.get('suggestions'):
+                        st.subheader("💡 AI Suggestions")
+                        for suggestion in guidance_result['suggestions']:
+                            st.info(f"• {suggestion}")
+
+            except Exception as e:
+                st.error(f"AI Guidance error: {str(e)}")
+
+        # Query enhancement section
+        st.subheader("🔧 Query Enhancement Tools")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.write("**Business Intelligence Patterns:**")
+            bi_patterns = [
+                "Revenue trend analysis",
+                "Customer segmentation",
+                "Product performance ranking",
+                "Seasonal pattern detection",
+                "Cohort analysis",
+                "Funnel analysis"
+            ]
+
+            selected_pattern = st.selectbox("Quick BI Pattern", bi_patterns)
+
+            if st.button("Apply Pattern"):
+                pattern_questions = {
+                    "Revenue trend analysis": "Show me revenue trends by month for the last 12 months",
+                    "Customer segmentation": "Segment customers by purchase behavior and value",
+                    "Product performance ranking": "Rank products by sales performance and profitability",
+                    "Seasonal pattern detection": "Identify seasonal patterns in sales data",
+                    "Cohort analysis": "Analyze customer retention by cohort",
+                    "Funnel analysis": "Show conversion funnel from leads to customers"
+                }
+
+                st.session_state.pattern_question = pattern_questions.get(selected_pattern, "")
+                st.info(f"Pattern applied: {pattern_questions.get(selected_pattern, '')}")
+
+        with col2:
+            st.write("**Query Templates:**")
+            templates = [
+                "Top N analysis",
+                "Time-based comparison",
+                "Percentage calculations",
+                "Running totals",
+                "Year-over-year growth",
+                "Moving averages"
+            ]
+
+            selected_template = st.selectbox("Quick Template", templates)
+
+            if st.button("Use Template"):
+                template_sql = {
+                    "Top N analysis": "SELECT column, COUNT(*) as count FROM table GROUP BY column ORDER BY count DESC LIMIT 10",
+                    "Time-based comparison": "SELECT date_column, metric, LAG(metric) OVER (ORDER BY date_column) as previous FROM table",
+                    "Percentage calculations": "SELECT category, value, (value * 100.0 / SUM(value) OVER()) as percentage FROM table",
+                    "Running totals": "SELECT date_column, value, SUM(value) OVER (ORDER BY date_column) as running_total FROM table",
+                    "Year-over-year growth": "SELECT YEAR(date_col) as year, SUM(value) as total, LAG(SUM(value)) OVER (ORDER BY YEAR(date_col)) as prev_year FROM table GROUP BY YEAR(date_col)",
+                    "Moving averages": "SELECT date_column, value, AVG(value) OVER (ORDER BY date_column ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) as moving_avg FROM table"
+                }
+
+                st.session_state.template_sql = template_sql.get(selected_template, "")
+                st.code(template_sql.get(selected_template, ""), language="sql")
+
+# ============ TAB 5: REPORTS ============
+with tab5:
     st.header("📋 Business Intelligence Reports")
 
     if not st.session_state.db_connected:
@@ -906,8 +1203,8 @@ with tab4:
             except Exception as e:
                 st.error(f"Report generation error: {str(e)}")
 
-# ============ TAB 5: HISTORY ============
-with tab5:
+# ============ TAB 6: HISTORY ============
+with tab6:
     st.header("📚 Query History & Favorites")
 
     # Create subtabs for history and favorites
@@ -1009,42 +1306,191 @@ with tab5:
                 st.success("Session data cleared!")
                 st.experimental_rerun()
 
+# ============ TAB 7: SETTINGS ============
+with tab7:
+    st.header("⚙️ Advanced Settings & Configuration")
+
+    # AI Model Settings
+    st.subheader("🧠 AI Model Configuration")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.write("**Current Model:**")
+        st.info(f"Model: {MODEL_NAME}")
+        st.info(f"Provider: Groq")
+
+        # Model performance settings
+        temperature = st.slider(
+            "AI Temperature (Creativity)",
+            min_value=0.0,
+            max_value=1.0,
+            value=0.1,
+            step=0.1,
+            help="Lower values = more focused, Higher values = more creative"
+        )
+
+        max_tokens = st.slider(
+            "Max Response Tokens",
+            min_value=100,
+            max_value=2000,
+            value=500,
+            step=100,
+            help="Maximum length of AI responses"
+        )
+
+    with col2:
+        st.write("**Prompt Template Settings:**")
+
+        # Initialize prompt manager
+        if 'prompt_manager' not in st.session_state:
+            st.session_state.prompt_manager = PromptTemplateManager()
+
+        available_templates = st.session_state.prompt_manager.list_templates()
+
+        default_template = st.selectbox(
+            "Default Prompt Template",
+            options=available_templates,
+            help="Choose the default AI prompt template"
+        )
+
+        # Show template description
+        if default_template:
+            description = st.session_state.prompt_manager.get_template_description(default_template)
+            st.info(f"Template: {description}")
+
+    # Performance Settings
+    st.subheader("⚡ Performance Configuration")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        query_timeout = st.number_input(
+            "Query Timeout (seconds)",
+            min_value=10,
+            max_value=600,
+            value=300,
+            step=10,
+            help="Maximum time to wait for query execution"
+        )
+
+    with col2:
+        max_result_rows = st.number_input(
+            "Max Result Rows",
+            min_value=100,
+            max_value=100000,
+            value=10000,
+            step=1000,
+            help="Maximum number of rows to return"
+        )
+
+    with col3:
+        enable_caching = st.checkbox(
+            "Enable Query Caching",
+            value=True,
+            help="Cache query results for faster repeated queries"
+        )
+
+    # Save Settings
+    st.subheader("💾 Save Configuration")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        if st.button("💾 Save Settings"):
+            # Save settings to session state
+            settings = {
+                'ai_temperature': temperature,
+                'max_tokens': max_tokens,
+                'default_template': default_template,
+                'query_timeout': query_timeout,
+                'max_result_rows': max_result_rows,
+                'enable_caching': enable_caching
+            }
+
+            st.session_state.app_settings = settings
+            st.success("✅ Settings saved successfully!")
+
+    with col2:
+        if st.button("🔄 Reset to Defaults"):
+            # Clear custom settings
+            if 'app_settings' in st.session_state:
+                del st.session_state.app_settings
+            st.success("✅ Settings reset to defaults!")
+            st.experimental_rerun()
+
+    with col3:
+        if st.button("📋 Export Settings"):
+            # Export settings as JSON
+            if 'app_settings' in st.session_state:
+                settings_json = json.dumps(st.session_state.app_settings, indent=2)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
+                st.download_button(
+                    label="💾 Download Settings",
+                    data=settings_json,
+                    file_name=f"app_settings_{timestamp}.json",
+                    mime="application/json"
+                )
+            else:
+                st.warning("No custom settings to export")
+
+    # System Information
+    st.subheader("ℹ️ System Information")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.write("**Application Info:**")
+        st.info("Version: 2.0.0 (Advanced)")
+        st.info("Framework: Streamlit")
+        st.info("AI Provider: Groq")
+
+    with col2:
+        st.write("**Database Info:**")
+        if st.session_state.db_connected:
+            st.success("✅ Database Connected")
+            st.info(f"Host: {st.session_state.get('db_host', 'N/A')}")
+            st.info(f"Database: {st.session_state.get('db_name', 'N/A')}")
+        else:
+            st.error("❌ Database Not Connected")
+
 # Footer
 st.markdown("---")
 st.markdown(
-    "🔧 **Advanced SQL Assistant** | Powered by Groq AI | Enhanced with Business Intelligence")
+    "🚀 **Advanced SQL Assistant v2.0** | Powered by Groq AI | Enhanced with Business Intelligence & Advanced Analytics")
 
 # Help section
 with st.expander("ℹ️ Help & Documentation"):
     st.markdown("""
     ## 🚀 Advanced Features Guide
-    
+
     ### 🔍 Query Builder
     - **Smart SQL Generation**: Convert natural language to optimized SQL
     - **Prompt Templates**: Choose from Basic, Production, or Enterprise prompts
     - **Quick Visualization**: Automatic chart generation for results
     - **Favorites System**: Save and reuse successful queries
-    
+
     ### 📊 Dashboard
     - **Interactive Charts**: Multiple chart types with auto-detection
     - **Custom Queries**: Run any SQL for dashboard visualization
     - **Real-time Refresh**: Update dashboard data instantly
-    
+
     ### ⚡ Optimization
     - **Performance Analysis**: EXPLAIN query execution plans
     - **AI Suggestions**: Get optimization recommendations
     - **Complexity Scoring**: Understand query complexity metrics
-    
+
     ### 📋 Reports
     - **Business Intelligence**: Comprehensive data analysis reports
     - **AI Insights**: Automated pattern detection and recommendations
     - **Export Options**: PDF, CSV, and JSON export capabilities
-    
+
     ### 📚 History & Sessions
     - **Query History**: Track all executed queries with metadata
     - **Session Management**: Persistent session data and analytics
     - **Export/Import**: Backup and restore query collections
-    
+
     ## 🛠️ Setup Requirements
     - Groq API key in `.env` file as `GROQ_API_KEY`
     - Database connection (MySQL or PostgreSQL)

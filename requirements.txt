@@ -1,28 +1,62 @@
-# Core dependencies
-streamlit==1.28.0
-sqlalchemy==2.0.23
-python-dotenv==1.0.0
-requests==2.31.0
-pymysql==1.1.0
-psycopg2-binary==2.9.9
-pandas==2.1.4
-groq==0.4.1
+# Python 3.10 Compatible Requirements
+# Advanced SQL Assistant v2.0
 
-# Data visualization
-plotly==5.17.0
-matplotlib==3.8.2
-seaborn==0.13.0
+# Core dependencies
+streamlit>=1.28.0,<2.0.0
+sqlalchemy>=2.0.0,<3.0.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+pymysql>=1.1.0
+psycopg2-binary>=2.9.0
+pandas>=2.0.0,<3.0.0
+groq>=0.4.0
+
+# Essential utilities (install first)
+numpy>=1.24.0,<2.0.0
+setuptools>=65.0.0
+
+# Data visualization (core)
+plotly>=5.15.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Dashboard components
+dash>=2.14.0
+dash-bootstrap-components>=1.4.0
+
+# Advanced visualization (optional - can be installed separately)
+# folium>=0.14.0
+# altair>=5.0.0
+# bokeh>=3.0.0
+# wordcloud>=1.9.0
 
 # Report generation
-reportlab==4.0.7
-jinja2==3.1.2
-weasyprint==60.2
+reportlab>=4.0.0
+jinja2>=3.1.0
+openpyxl>=3.1.0
+xlsxwriter>=3.1.0
 
 # Performance and optimization
-sqlparse==0.4.4
+sqlparse>=0.4.0
+memory-profiler>=0.61.0
 
-# Session management
-streamlit-authenticator==0.2.3
+# Session management and caching
+streamlit-authenticator>=0.2.0
+diskcache>=5.6.0
+
+# Advanced analytics
+scipy>=1.10.0
+scikit-learn>=1.3.0
+statsmodels>=0.14.0
 
 # Additional utilities
-numpy==1.25.2
+pyarrow>=14.0.0
+joblib>=1.3.0
+
+# Optional heavy packages (install separately if needed)
+# redis>=5.0.0  # Only if using Redis caching
+# weasyprint>=60.0  # Only if generating PDF reports (has complex dependencies)
+# py-spy>=0.3.0  # Only for advanced profiling
+# kaleido>=0.2.0  # Only for static image export
+# fastparquet>=2023.10.0  # Only for parquet file support
+sqlparse
