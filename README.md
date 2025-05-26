@@ -321,13 +321,29 @@ cd advanced-sql-assistant
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
+# Configure environment (optional for demo mode)
 cp .env.example .env
 # Add your credentials to .env file
 
 # Launch the application
 streamlit run app.py
 ```
+
+### **🎯 Demo Mode - Perfect for Portfolio Showcase**
+**No database setup required!** The application includes a comprehensive demo mode with:
+
+- **📊 Sample Business Database**: 1,000+ customers, 50+ products, 10,000+ transactions
+- **🚀 One-Click Setup**: Automatically creates SQLite database with realistic data
+- **💼 Portfolio Ready**: Perfect for demonstrating capabilities to recruiters
+- **🎓 Learning Examples**: Pre-built complex queries showcasing AI capabilities
+
+**To use Demo Mode:**
+1. Launch the application: `streamlit run app.py`
+2. Check "🎯 Demo Mode (Portfolio Showcase)" in the sidebar
+3. Click "🚀 Connect to Demo Database"
+4. Try the sample questions or ask your own!
+
+**Perfect for Streamlit Cloud deployment** - no external database required!
 
 ### **Environment Configuration**
 ```env

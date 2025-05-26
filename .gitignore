@@ -209,6 +209,9 @@ cython_debug/
 database.sql
 backup.sql
 
+# Exception: Include demo database for Streamlit Cloud deployment
+!sample_business_data.db
+
 # =============================================================================
 # LOGS
 # =============================================================================
