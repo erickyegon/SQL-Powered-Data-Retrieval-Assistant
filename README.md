@@ -12,9 +12,220 @@
 
 A production-ready, enterprise-grade platform demonstrating **cutting-edge AI engineering**, **advanced data science**, and **scalable system architecture**. This project showcases expertise essential for **Senior AI Engineer**, **Principal Data Scientist**, and **Technical Leadership** roles.
 
+## 🏗️ **System Architecture Overview**
+
+```mermaid
+graph TB
+    subgraph "🎨 Presentation Layer"
+        UI[Streamlit Professional UI]
+        TABS[Modular Tab Components]
+        VIZ[Advanced Visualizations]
+    end
+
+    subgraph "🧠 AI/ML Engine"
+        LLM[Multi-LLM Orchestration]
+        PROMPT[Advanced Prompt Engineering]
+        ERROR[Intelligent Error Recovery]
+        NLP[Natural Language Processing]
+    end
+
+    subgraph "📊 Analytics Engine"
+        STATS[Statistical Analysis]
+        BI[Business Intelligence]
+        DASH[Dashboard Builder]
+        EXPORT[Data Export Engine]
+    end
+
+    subgraph "⚡ Core Services"
+        QUERY[Query Optimization]
+        CACHE[Intelligent Caching]
+        VALID[SQL Validation]
+        PERF[Performance Monitoring]
+    end
+
+    subgraph "🔒 Security Layer"
+        AUTH[Authentication]
+        INJECT[SQL Injection Prevention]
+        AUDIT[Audit Logging]
+        ENCRYPT[Data Encryption]
+    end
+
+    subgraph "💾 Data Layer"
+        MYSQL[(MySQL 8.0+)]
+        POSTGRES[(PostgreSQL 13+)]
+        SCHEMA[Schema Intelligence]
+        CONN[Connection Pooling]
+    end
+
+    subgraph "🌐 External APIs"
+        GROQ[Groq AI API]
+        OPENAI[OpenAI API]
+        GEMINI[Google Gemini API]
+    end
+
+    %% User Flow
+    USER[👤 Business User] --> UI
+    UI --> TABS
+    TABS --> LLM
+
+    %% AI Processing Flow
+    LLM --> PROMPT
+    PROMPT --> NLP
+    NLP --> QUERY
+    QUERY --> ERROR
+    ERROR --> VALID
+
+    %% Data Flow
+    VALID --> SCHEMA
+    SCHEMA --> MYSQL
+    SCHEMA --> POSTGRES
+    MYSQL --> STATS
+    POSTGRES --> STATS
+
+    %% Analytics Flow
+    STATS --> BI
+    BI --> DASH
+    DASH --> VIZ
+    VIZ --> EXPORT
+
+    %% External Integrations
+    LLM --> GROQ
+    LLM --> OPENAI
+    LLM --> GEMINI
+
+    %% Security Integration
+    AUTH --> UI
+    INJECT --> VALID
+    AUDIT --> PERF
+    ENCRYPT --> CONN
+
+    %% Performance Optimization
+    CACHE --> QUERY
+    PERF --> CACHE
+    CONN --> MYSQL
+    CONN --> POSTGRES
+
+    %% Styling
+    classDef aiEngine fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef analytics fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef security fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef data fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
+    classDef external fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+
+    class LLM,PROMPT,ERROR,NLP aiEngine
+    class STATS,BI,DASH,EXPORT analytics
+    class AUTH,INJECT,AUDIT,ENCRYPT security
+    class MYSQL,POSTGRES,SCHEMA,CONN data
+    class GROQ,OPENAI,GEMINI external
+```
+
+## 🔄 **Data Flow Architecture**
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 Business User
+    participant UI as 🎨 Streamlit UI
+    participant AI as 🧠 AI Engine
+    participant DB as 💾 Database
+    participant Cache as ⚡ Cache Layer
+    participant Viz as 📊 Visualization
+
+    User->>UI: Natural Language Query
+    UI->>AI: Process Business Question
+
+    Note over AI: Multi-LLM Orchestration
+    AI->>AI: Advanced Prompt Engineering
+    AI->>AI: Context-Aware Processing
+    AI->>AI: SQL Generation
+
+    AI->>DB: Execute Query
+
+    alt Query Error
+        DB-->>AI: Error Response
+        AI->>AI: Intelligent Error Recovery
+        AI->>AI: Auto-Fix & Retry
+        AI->>DB: Execute Fixed Query
+    end
+
+    DB-->>Cache: Store Results
+    Cache-->>Viz: Optimized Data
+
+    Note over Viz: Advanced Analytics
+    Viz->>Viz: Statistical Analysis
+    Viz->>Viz: Chart Generation
+    Viz->>Viz: Business Intelligence
+
+    Viz-->>UI: Interactive Dashboard
+    UI-->>User: Professional Results
+
+    Note over User,Viz: 95%+ Accuracy, <2s Response Time
+```
+
+## 🧩 **Modular Component Architecture**
+
+```mermaid
+graph LR
+    subgraph "📂 Core Modules"
+        CONFIG[config.py<br/>🔧 Configuration]
+        UTILS[utils.py<br/>🛠️ Core Utilities]
+        PROMPTS[advanced_prompts.py<br/>🧠 Prompt Engineering]
+    end
+
+    subgraph "📂 UI Components"
+        APP[app.py<br/>🚀 Main Application]
+        BUILDER[query_builder.py<br/>🔍 Query Generation]
+        DASHBOARD[dashboard.py<br/>📊 Analytics Dashboard]
+        OPTIMIZE[optimization.py<br/>⚡ Performance Tuning]
+    end
+
+    subgraph "📂 AI Services"
+        LLM_SYS[llm_guidance_system.py<br/>🤖 AI Guidance]
+        QUERY_OPT[query_optimizer.py<br/>🎯 Query Optimization]
+        DASH_BUILD[dashboard_builder.py<br/>📈 Dashboard Engine]
+    end
+
+    subgraph "📂 Data Services"
+        DB_UTILS[database_utils.py<br/>💾 Database Operations]
+        LOG_UTILS[logging_utils.py<br/>📝 Monitoring & Logs]
+    end
+
+    %% Dependencies
+    APP --> CONFIG
+    APP --> BUILDER
+    APP --> DASHBOARD
+    APP --> OPTIMIZE
+
+    BUILDER --> UTILS
+    BUILDER --> PROMPTS
+    BUILDER --> LLM_SYS
+
+    DASHBOARD --> DASH_BUILD
+    DASHBOARD --> QUERY_OPT
+
+    OPTIMIZE --> QUERY_OPT
+    OPTIMIZE --> DB_UTILS
+
+    LLM_SYS --> UTILS
+    QUERY_OPT --> DB_UTILS
+    DASH_BUILD --> UTILS
+
+    DB_UTILS --> LOG_UTILS
+
+    %% Styling
+    classDef core fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    classDef ui fill:#f1f8e9,stroke:#388e3c,stroke-width:2px
+    classDef ai fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    classDef data fill:#fff3e0,stroke:#f57c00,stroke-width:2px
+
+    class CONFIG,UTILS,PROMPTS core
+    class APP,BUILDER,DASHBOARD,OPTIMIZE ui
+    class LLM_SYS,QUERY_OPT,DASH_BUILD ai
+    class DB_UTILS,LOG_UTILS data
+```
+
 ### **🏆 Key Achievements & Impact**
 - **🤖 AI Engineering**: Multi-LLM orchestration with 95%+ accuracy in complex SQL generation
-- **📊 Data Science**: Advanced analytics with 15+ statistical visualization types and BI dashboards  
+- **📊 Data Science**: Advanced analytics with 15+ statistical visualization types and BI dashboards
 - **⚡ Performance**: 60% reduction in query development time, 80% improvement in query performance
 - **🏗️ Architecture**: Enterprise-grade system supporting 1000+ table databases with sub-second response times
 - **🔒 Security**: Production-ready security with SQL injection prevention and audit compliance
@@ -28,7 +239,7 @@ A production-ready, enterprise-grade platform demonstrating **cutting-edge AI en
 - **Natural Language Processing**: Advanced NLP for business question understanding and SQL translation
 - **AI Model Optimization**: Temperature tuning, token management, and response validation
 
-#### **📊 Data Science & Analytics Expertise**  
+#### **📊 Data Science & Analytics Expertise**
 - **Statistical Analysis**: Correlation analysis, distribution modeling, time-series analysis
 - **Advanced Visualizations**: 15+ chart types including waterfall, funnel, treemap, radar charts
 - **Business Intelligence**: KPI dashboards, executive reporting, performance metrics
@@ -37,7 +248,7 @@ A production-ready, enterprise-grade platform demonstrating **cutting-edge AI en
 
 #### **🏗️ Software Engineering Excellence**
 - **Scalable Architecture**: Modular design with separation of concerns and enterprise patterns
-- **Performance Optimization**: Query caching, index recommendations, execution plan analysis  
+- **Performance Optimization**: Query caching, index recommendations, execution plan analysis
 - **Error Handling**: Intelligent error recovery with automatic query correction (85% success rate)
 - **Security Implementation**: SQL injection prevention, audit logging, role-based access
 - **Production-Ready Code**: Comprehensive testing, documentation, and deployment guides
@@ -139,11 +350,11 @@ DB_PASSWORD=your_password
 "Show me the top 10 customers by revenue growth in Q4 2023"
 
 # Generated Optimized SQL
-SELECT 
+SELECT
     c.customer_name,
     SUM(s.revenue) as total_revenue,
     LAG(SUM(s.revenue)) OVER (ORDER BY SUM(s.revenue)) as prev_revenue,
-    ((SUM(s.revenue) - LAG(SUM(s.revenue)) OVER (ORDER BY SUM(s.revenue))) 
+    ((SUM(s.revenue) - LAG(SUM(s.revenue)) OVER (ORDER BY SUM(s.revenue)))
      / LAG(SUM(s.revenue)) OVER (ORDER BY SUM(s.revenue))) * 100 as growth_rate
 FROM customers c
 JOIN sales s ON c.customer_id = s.customer_id
@@ -175,22 +386,22 @@ LIMIT 10;
 ## 📈 **Performance Metrics & Achievements**
 
 ### **System Performance**
-- **Query Generation**: < 2 seconds average response time  
-- **Accuracy Rate**: 95%+ for domain-specific business queries  
+- **Query Generation**: < 2 seconds average response time
+- **Accuracy Rate**: 95%+ for domain-specific business queries
 - **Error Recovery**: 85% automatic fix success rate
-- **Scalability**: Supports databases with 1000+ tables  
+- **Scalability**: Supports databases with 1000+ tables
 
 ### **Business Impact**
-- **Time Reduction**: 60% faster than manual SQL writing  
-- **Accessibility**: Zero SQL knowledge required for end users  
-- **Error Prevention**: Eliminated SQL injection vulnerabilities  
-- **Query Quality**: Automated optimization suggestions  
+- **Time Reduction**: 60% faster than manual SQL writing
+- **Accessibility**: Zero SQL knowledge required for end users
+- **Error Prevention**: Eliminated SQL injection vulnerabilities
+- **Query Quality**: Automated optimization suggestions
 
 ### **Technical Innovation**
-- **Multi-Provider LLM**: Seamless failover between API providers  
-- **Schema Intelligence**: Real-time database structure adaptation  
-- **Security Compliance**: Enterprise-grade protection mechanisms  
-- **Performance Optimization**: Automatic query tuning and indexing hints  
+- **Multi-Provider LLM**: Seamless failover between API providers
+- **Schema Intelligence**: Real-time database structure adaptation
+- **Security Compliance**: Enterprise-grade protection mechanisms
+- **Performance Optimization**: Automatic query tuning and indexing hints
 
 ---
 
@@ -200,17 +411,17 @@ LIMIT 10;
 ```python
 class PromptTemplateManager:
     """Advanced prompt engineering with domain expertise"""
-    
+
     def get_business_analyst_prompt(self, schema, question):
         return f"""
         You are a senior business analyst with expertise in:
         - Financial KPI calculations and business metrics
-        - Customer segmentation and cohort analysis  
+        - Customer segmentation and cohort analysis
         - Revenue optimization and growth analysis
-        
+
         Database Schema: {schema}
         Business Question: {question}
-        
+
         Generate optimized SQL with business logic validation.
         """
 ```
@@ -219,24 +430,24 @@ class PromptTemplateManager:
 ```python
 def execute_sql_with_error_recovery(engine, query, schema, max_retries=3):
     """Intelligent error recovery with multiple strategies"""
-    
+
     for attempt in range(max_retries):
         try:
             return execute_sql(engine, query)
         except Exception as e:
             # Strategy 1: Financial domain fixes
             fixed_query = fix_financial_query_errors(query, str(e))
-            
-            # Strategy 2: Column mapping corrections  
+
+            # Strategy 2: Column mapping corrections
             if not fixed_query:
                 fixed_query = fix_column_mapping_errors(query, str(e))
-            
+
             # Strategy 3: Fallback query generation
             if not fixed_query:
                 fixed_query = generate_fallback_query(query, str(e))
-            
+
             query = fixed_query
-    
+
     raise Exception("All recovery strategies failed")
 ```
 
@@ -244,13 +455,13 @@ def execute_sql_with_error_recovery(engine, query, schema, max_retries=3):
 ```python
 class AdvancedAnalytics:
     """Statistical analysis and business intelligence"""
-    
+
     def generate_correlation_analysis(self, df):
         """Generate correlation matrix with statistical significance"""
-        
+
     def create_cohort_analysis(self, df, customer_col, date_col, revenue_col):
         """Customer cohort analysis with retention metrics"""
-        
+
     def build_revenue_waterfall(self, df, categories, values):
         """Revenue waterfall chart with variance analysis"""
 ```
@@ -305,7 +516,7 @@ advanced-sql-assistant/
 ├── requirements.txt      # Production dependencies
 ├── src/                  # Core application modules
 │   ├── core/            # Business logic and AI engine
-│   ├── ui/              # User interface components  
+│   ├── ui/              # User interface components
 │   └── utils/           # Utility functions
 ├── tabs/                # Modular tab components
 │   ├── query_builder.py # AI-powered query generation
@@ -321,10 +532,10 @@ advanced-sql-assistant/
 
 ## 🤝 **Contact & Portfolio**
 
-**Developed by:** Erick Yegon, PhD  
-**Email:** keyegon@gmail.com  
-**LinkedIn:** [Erick Yegon, PhD](https://www.linkedin.com/in/erick-yegon-phd-4116961b4/)  
-**Portfolio:** [Advanced AI Engineering Projects]
+**Developed by:** Erick Yegon, PhD
+**Email:** keyegon@gmail.com
+**LinkedIn:** [Erick Yegon, PhD](https://www.linkedin.com/in/erick-yegon-phd-4116961b4/)
+
 
 ---
 
